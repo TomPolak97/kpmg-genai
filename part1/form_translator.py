@@ -1,5 +1,13 @@
-# translator.py
+import logging
 from typing import Dict
+
+# ------------------ Setup logging ------------------
+logger = logging.getLogger(__name__)
+if not logger.hasHandlers():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s"
+    )
 
 # Dictionary mapping languages to key mappings
 LANGUAGE_MAPPINGS: Dict[str, Dict[str, str]] = {
@@ -37,7 +45,7 @@ LANGUAGE_MAPPINGS: Dict[str, Dict[str, str]] = {
         "month": "חודש",
         "year": "שנה"
     }
-    # You can add more languages here, e.g., "spanish": { ... }
+    # Additional languages can be added here
 }
 
 
@@ -48,21 +56,47 @@ def translate_form(data: dict, language: str) -> dict:
     :param language: language code, e.g., "hebrew"
     :return: dict with translated keys
     """
-    if language.lower() == "english":
-        return data  # no translation needed
+    try:
+        if not isinstance(data, dict):
+            raise TypeError(f"Expected a dict for data, got {type(data)}")
 
-    mapping = LANGUAGE_MAPPINGS.get(language.lower())
-    if not mapping:
-        raise ValueError(f"Unsupported language: {language}")
+        if language.lower() == "english":
+            logger.info("Language is English; no translation needed.")
+            return data  # no translation needed
 
-    def _translate(d: dict) -> dict:
-        new_d = {}
-        for k, v in d.items():
-            new_key = mapping.get(k, k)
-            if isinstance(v, dict):
-                new_d[new_key] = _translate(v)
-            else:
-                new_d[new_key] = v
-        return new_d
+        mapping = LANGUAGE_MAPPINGS.get(language.lower())
+        if not mapping:
+            raise ValueError(f"Unsupported language: {language}")
 
-    return _translate(data)
+        def _translate(d: dict) -> dict:
+            new_d = {}
+            for k, v in d.items():
+                new_key = mapping.get(k, k)
+                if new_key != k:
+                    logger.debug("Translating key '%s' -> '%s'", k, new_key)
+                else:
+                    logger.debug("No translation found for key '%s', keeping original", k)
+                if isinstance(v, dict):
+                    new_d[new_key] = _translate(v)
+                elif isinstance(v, list):
+                    # Translate dictionaries inside lists
+                    new_list = []
+                    for item in v:
+                        if isinstance(item, dict):
+                            new_list.append(_translate(item))
+                        else:
+                            new_list.append(item)
+                    new_d[new_key] = new_list
+                else:
+                    new_d[new_key] = v
+            return new_d
+
+        translated_data = _translate(data)
+        logger.info("Translation to '%s' completed successfully.", language)
+        return translated_data
+
+    except Exception as e:
+        logger.exception("Failed to translate form")
+        # Return original data as a safe fallback
+        return data
+
