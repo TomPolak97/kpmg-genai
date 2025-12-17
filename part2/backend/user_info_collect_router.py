@@ -1,4 +1,3 @@
-# user_info_collect_router.py
 from fastapi import APIRouter, Request, HTTPException
 import logging
 import json

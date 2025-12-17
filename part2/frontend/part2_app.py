@@ -1,4 +1,3 @@
-import pydevd_pycharm
 import streamlit as st
 import requests
 import logging
@@ -13,14 +12,26 @@ ASK_URL = "http://localhost:8000/ask"
 # ==============================
 # Setup helpers
 # ==============================
-def setup_debugging():
-    pydevd_pycharm.settrace(
-        "localhost",
-        port=5679,
-        stdout_to_server=True,
-        stderr_to_server=True,
-        suspend=False
-    )
+def setup_debugging(enable=False, host="localhost", port=5679, suspend=False):
+    """
+    Enable PyCharm remote debugging if enable=True.
+    """
+    if enable:
+        try:
+            import pydevd_pycharm
+            pydevd_pycharm.settrace(
+                host,
+                port=port,
+                stdout_to_server=True,
+                stderr_to_server=True,
+                suspend=suspend
+            )
+            print(f"PyCharm debugger attached to {host}:{port}")
+        except ImportError:
+            print("pydevd_pycharm module not found. Install PyCharm debug egg first.")
+        except Exception as e:
+            print(f"Failed to attach PyCharm debugger: {e}")
+
 
 
 def setup_logging():
@@ -132,70 +143,6 @@ def render_user_info_collection(logger):
             st.error("Invalid response from server")
             logger.exception("Verification parsing failed", exc_info=e)
 
-# def render_user_info_collection(logger):
-#     st.markdown(
-#         "### Personal Information\n"
-#         "Please enter **all details in one box**, separated by **new lines**:\n\n"
-#         "- First name (letters only)\n"
-#         "- Last name (letters only)\n"
-#         "- ID number (9 digits)\n"
-#         "- Gender\n"
-#         "- Age (0–120)\n"
-#         "- HMO name (מכבי | מאוחדת | כללית)\n"
-#         "- HMO card number (9 digits)\n"
-#         "- Insurance membership tier (זהב | כסף | ארד)\n\n"
-#         "**Example:**\n"
-#         "```\n"
-#         "John\nDoe\n123456789\nMale\n30\nמכבי\n987654321\nזהב\n"
-#         "```"
-#     )
-#
-#     user_text = st.text_area(
-#         "Enter your details / הזן את הפרטים שלך",
-#         value=st.session_state.user_input_attempt["text"]
-#     )
-#
-#     if st.button("Submit / אשר"):
-#         st.session_state.user_input_attempt["text"] = user_text
-#
-#         try:
-#             verify_data = verify_user_details(
-#                 raw_text=user_text,
-#                 language=st.session_state.language,
-#                 logger=logger
-#             )
-#
-#             all_correct = verify_data.get("all_correct", False)
-#             corrected_info = verify_data.get("corrected_info", {})
-#             missing_fields = verify_data.get("missing_fields", [])
-#
-#             # Merge cumulative corrected info
-#             st.session_state.user_input_attempt["cumulative_corrected_info"].update(corrected_info)
-#
-#             if all_correct:
-#                 st.session_state.user_info = st.session_state.user_input_attempt["cumulative_corrected_info"]
-#                 st.success("All details are valid! You can now ask questions.")
-#                 logger.info("User info verified: %s", st.session_state.user_info)
-#                 st.rerun()
-#             else:
-#                 st.warning(
-#                     f"**Please correct the following fields:** {', '.join(missing_fields)}\n\n"
-#                     "Edit your input above, include **all personal details**, "
-#                     "each on a **new line**, and submit again."
-#                 )
-#                 logger.info(
-#                     "Partial user info collected: %s",
-#                     st.session_state.user_input_attempt["cumulative_corrected_info"]
-#                 )
-#
-#         except requests.RequestException as e:
-#             st.error("Failed to verify user details (server error)")
-#             logger.exception("Verification request failed", exc_info=e)
-#
-#         except Exception as e:
-#             st.error("Invalid response from server")
-#             logger.exception("Verification parsing failed", exc_info=e)
-
 
 
 def render_chat_ui(logger):
@@ -243,7 +190,7 @@ def render_chat_ui(logger):
 # App Entry Point
 # ==============================
 def main():
-    #setup_debugging()
+    setup_debugging()
     logger = setup_logging()
     init_session_state()
 

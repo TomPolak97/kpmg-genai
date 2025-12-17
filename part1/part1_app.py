@@ -1,19 +1,33 @@
-# import pydevd_pycharm
-# pydevd_pycharm.settrace(
-#     "localhost",  # your PyCharm host
-#     port=5678,    # debug port
-#     stdout_to_server=True,
-#     stderr_to_server=True,
-#     suspend=False
-# )
-
-import logging
 import streamlit as st
 from ocr import extract_text_from_document
 from llm_extractor import extract_fields_with_llm
 from validation import validate_extraction
 from part1_config import *
-from form_translator import translate_form  # generic translator
+from form_translator import translate_form
+
+# ------------------ Debugging ------------------
+def setup_debug(enable=False, host="localhost", port=5678, suspend=False):
+    """
+    Enable PyCharm remote debugging if `enable=True`.
+    """
+    if enable:
+        try:
+            import pydevd_pycharm
+            pydevd_pycharm.settrace(
+                host,
+                port=port,
+                stdout_to_server=True,
+                stderr_to_server=True,
+                suspend=suspend
+            )
+            print(f"PyCharm debugger attached to {host}:{port}")
+        except ImportError:
+            print("pydevd_pycharm module not found. Install PyCharm debug egg first.")
+        except Exception as e:
+            print(f"Failed to attach PyCharm debugger: {e}")
+
+# Call this at the top if you want to debug
+setup_debug(enable=False)  # set True to enable debugging
 
 # ------------------ Setup logging ------------------
 logging.basicConfig(
@@ -28,6 +42,7 @@ st.title("National Insurance Form – Field Extraction")
 # Language selection
 language = st.radio("Choose output language:", ("English", "Hebrew"))
 
+# File upload
 uploaded = st.file_uploader("Upload PDF or Image", type=["pdf", "jpg", "png"])
 
 if uploaded:
