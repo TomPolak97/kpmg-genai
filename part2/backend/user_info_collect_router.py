@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, HTTPException
 import logging
 import json
 import re
-from prompts import build_user_info_collect_prompt
+from part2.backend.prompts import build_user_info_collect_prompt
 
 logger = logging.getLogger(__name__)
 user_info_collect_router = APIRouter()

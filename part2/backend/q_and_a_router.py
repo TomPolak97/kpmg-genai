@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
-from rag_engine import get_relevant_chunks
-from prompts import build_q_and_a_prompt
+from part2.backend.rag_engine import get_relevant_chunks
+from part2.backend.prompts import build_q_and_a_prompt
 import logging
 
 logger = logging.getLogger(__name__)

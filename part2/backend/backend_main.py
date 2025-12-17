@@ -4,9 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from part2.backend.q_and_a_router import q_and_a_router
 from part2.backend.user_info_collect_router import user_info_collect_router
-from html_loader import preprocess_html
-from openai_client import init_client
-import logging_config as log_conf
+from part2.backend.html_loader import preprocess_html
+from part2.backend.openai_client import init_client
+import part2.backend.logging_config as log_conf
 
 # ---------------------------------------------------
 # Logging setup
