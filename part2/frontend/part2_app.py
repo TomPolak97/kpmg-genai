@@ -73,7 +73,6 @@ def render_language_selector():
     )
     st.session_state.language = language.lower()
 
-
 def render_user_info_collection(logger):
     st.markdown(
         "### Personal Information\n"
@@ -94,7 +93,7 @@ def render_user_info_collection(logger):
 
     user_text = st.text_area(
         "Enter your details / הזן את הפרטים שלך",
-        value=st.session_state.user_input_attempt["text"]
+        value=st.session_state.user_input_attempt.get("text", "")
     )
 
     if st.button("Submit / אשר"):
@@ -111,13 +110,11 @@ def render_user_info_collection(logger):
             corrected_info = verify_data.get("corrected_info", {})
             missing_fields = verify_data.get("missing_fields", [])
 
-            # Merge cumulative corrected info
-            st.session_state.user_input_attempt["cumulative_corrected_info"].update(corrected_info)
-
             if all_correct:
-                st.session_state.user_info = st.session_state.user_input_attempt["cumulative_corrected_info"]
+                # Store ONLY this validated submission
+                st.session_state.user_info = corrected_info
                 st.success("All details are valid! You can now ask questions.")
-                logger.info("User info verified: %s", st.session_state.user_info)
+                logger.info("User info verified: %s", corrected_info)
                 st.rerun()
             else:
                 st.warning(
@@ -125,10 +122,7 @@ def render_user_info_collection(logger):
                     "Edit your input above, include **all personal details**, "
                     "each on a **new line**, and submit again."
                 )
-                logger.info(
-                    "Partial user info collected: %s",
-                    st.session_state.user_input_attempt["cumulative_corrected_info"]
-                )
+                logger.info("User info validation failed. Missing fields: %s", missing_fields)
 
         except requests.RequestException as e:
             st.error("Failed to verify user details (server error)")
@@ -137,6 +131,71 @@ def render_user_info_collection(logger):
         except Exception as e:
             st.error("Invalid response from server")
             logger.exception("Verification parsing failed", exc_info=e)
+
+# def render_user_info_collection(logger):
+#     st.markdown(
+#         "### Personal Information\n"
+#         "Please enter **all details in one box**, separated by **new lines**:\n\n"
+#         "- First name (letters only)\n"
+#         "- Last name (letters only)\n"
+#         "- ID number (9 digits)\n"
+#         "- Gender\n"
+#         "- Age (0–120)\n"
+#         "- HMO name (מכבי | מאוחדת | כללית)\n"
+#         "- HMO card number (9 digits)\n"
+#         "- Insurance membership tier (זהב | כסף | ארד)\n\n"
+#         "**Example:**\n"
+#         "```\n"
+#         "John\nDoe\n123456789\nMale\n30\nמכבי\n987654321\nזהב\n"
+#         "```"
+#     )
+#
+#     user_text = st.text_area(
+#         "Enter your details / הזן את הפרטים שלך",
+#         value=st.session_state.user_input_attempt["text"]
+#     )
+#
+#     if st.button("Submit / אשר"):
+#         st.session_state.user_input_attempt["text"] = user_text
+#
+#         try:
+#             verify_data = verify_user_details(
+#                 raw_text=user_text,
+#                 language=st.session_state.language,
+#                 logger=logger
+#             )
+#
+#             all_correct = verify_data.get("all_correct", False)
+#             corrected_info = verify_data.get("corrected_info", {})
+#             missing_fields = verify_data.get("missing_fields", [])
+#
+#             # Merge cumulative corrected info
+#             st.session_state.user_input_attempt["cumulative_corrected_info"].update(corrected_info)
+#
+#             if all_correct:
+#                 st.session_state.user_info = st.session_state.user_input_attempt["cumulative_corrected_info"]
+#                 st.success("All details are valid! You can now ask questions.")
+#                 logger.info("User info verified: %s", st.session_state.user_info)
+#                 st.rerun()
+#             else:
+#                 st.warning(
+#                     f"**Please correct the following fields:** {', '.join(missing_fields)}\n\n"
+#                     "Edit your input above, include **all personal details**, "
+#                     "each on a **new line**, and submit again."
+#                 )
+#                 logger.info(
+#                     "Partial user info collected: %s",
+#                     st.session_state.user_input_attempt["cumulative_corrected_info"]
+#                 )
+#
+#         except requests.RequestException as e:
+#             st.error("Failed to verify user details (server error)")
+#             logger.exception("Verification request failed", exc_info=e)
+#
+#         except Exception as e:
+#             st.error("Invalid response from server")
+#             logger.exception("Verification parsing failed", exc_info=e)
+
 
 
 def render_chat_ui(logger):
@@ -184,7 +243,7 @@ def render_chat_ui(logger):
 # App Entry Point
 # ==============================
 def main():
-    setup_debugging()
+    #setup_debugging()
     logger = setup_logging()
     init_session_state()
 
