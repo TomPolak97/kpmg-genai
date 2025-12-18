@@ -1,13 +1,11 @@
 import logging
 from typing import Dict
 
-# ------------------ Setup logging ------------------
+# IMPORTANT:
+# Logging is configured centrally in logging_config.py.
+# We only retrieve a named logger here.
 logger = logging.getLogger(__name__)
-if not logger.hasHandlers():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s"
-    )
+
 
 # Dictionary mapping languages to key mappings
 LANGUAGE_MAPPINGS: Dict[str, Dict[str, str]] = {
@@ -58,45 +56,41 @@ def translate_form(data: dict, language: str) -> dict:
     """
     try:
         if not isinstance(data, dict):
-            raise TypeError(f"Expected a dict for data, got {type(data)}")
+            raise TypeError(f"Expected dict for data, got {type(data)}")
 
         if language.lower() == "english":
-            logger.info("Language is English; no translation needed.")
-            return data  # no translation needed
+            logger.info("Language is English; skipping translation")
+            return data
 
         mapping = LANGUAGE_MAPPINGS.get(language.lower())
         if not mapping:
             raise ValueError(f"Unsupported language: {language}")
 
         def _translate(d: dict) -> dict:
-            new_d = {}
-            for k, v in d.items():
-                new_key = mapping.get(k, k)
-                if new_key != k:
-                    logger.debug("Translating key '%s' -> '%s'", k, new_key)
+            translated = {}
+            for key, value in d.items():
+                new_key = mapping.get(key, key)
+
+                if new_key != key:
+                    logger.debug("Translated key '%s' -> '%s'", key, new_key)
+
+                if isinstance(value, dict):
+                    translated[new_key] = _translate(value)
+                elif isinstance(value, list):
+                    translated[new_key] = [
+                        _translate(item) if isinstance(item, dict) else item
+                        for item in value
+                    ]
                 else:
-                    logger.debug("No translation found for key '%s', keeping original", k)
-                if isinstance(v, dict):
-                    new_d[new_key] = _translate(v)
-                elif isinstance(v, list):
-                    # Translate dictionaries inside lists
-                    new_list = []
-                    for item in v:
-                        if isinstance(item, dict):
-                            new_list.append(_translate(item))
-                        else:
-                            new_list.append(item)
-                    new_d[new_key] = new_list
-                else:
-                    new_d[new_key] = v
-            return new_d
+                    translated[new_key] = value
+
+            return translated
 
         translated_data = _translate(data)
-        logger.info("Translation to '%s' completed successfully.", language)
+        logger.info("Translation completed successfully (language=%s)", language)
         return translated_data
 
-    except Exception as e:
-        logger.exception("Failed to translate form")
-        # Return original data as a safe fallback
+    except Exception:
+        logger.exception("Form translation failed")
+        # Safe fallback: return original data
         return data
-

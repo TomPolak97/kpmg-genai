@@ -1,18 +1,15 @@
 import logging
 
-# ------------------ Setup logging ------------------
+# IMPORTANT:
+# Logging is configured centrally in logging_config.py
 logger = logging.getLogger(__name__)
-if not logger.hasHandlers():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s"
-    )
 
 REQUIRED_FIELDS = [
     "firstName", "lastName", "idNumber", "dateOfBirth", "dateOfInjury"
 ]
 
-def validate_extraction(data: dict):
+
+def validate_extraction(data: dict) -> dict:
     """
     Validates the extracted form data.
     Checks for missing required fields and computes a completeness score.
@@ -24,7 +21,8 @@ def validate_extraction(data: dict):
         if not isinstance(data, dict):
             raise TypeError(f"Expected data to be a dict, got {type(data)}")
 
-        logger.info("Starting validation of extracted data.")
+        logger.info("Starting validation of extracted data")
+
         missing = []
         filled = 0
         total = 0
@@ -68,11 +66,10 @@ def validate_extraction(data: dict):
             "completeness_score_percent": completeness_score
         }
 
-    except Exception as e:
+    except Exception:
         logger.exception("Validation failed due to an unexpected error")
         return {
             "missing_required_fields": REQUIRED_FIELDS,
             "completeness_score_percent": 0.0,
-            "error": str(e)
+            "error": "Unexpected validation error"
         }
-

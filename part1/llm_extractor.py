@@ -1,38 +1,53 @@
 import logging
 import json
 import re
+
 from openai import AzureOpenAI
 from schema import InjuryForm
 
-# ------------------ Setup logging ------------------
+# IMPORTANT:
+# Logging is configured centrally in logging_config.py
 logger = logging.getLogger(__name__)
-if not logger.hasHandlers():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s"
-    )
 
-def safe_json_loads(raw_text: str):
+
+def safe_json_loads(raw_text: str) -> dict:
+    """
+    Safely extract and parse a JSON object from raw LLM output.
+    """
     try:
         match = re.search(r'\{.*\}', raw_text, flags=re.DOTALL)
         if not match:
             raise ValueError("No JSON object found in LLM response")
+
         json_str = match.group(0)
         json_str = json_str.replace("'", '"')
         json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
-        return json.loads(json_str)
-    except Exception as e:
+
+        parsed = json.loads(json_str)
+        logger.debug("LLM JSON parsed successfully")
+        return parsed
+
+    except Exception:
         logger.exception("Failed to parse JSON from LLM output")
-        raise ValueError(f"Failed to parse JSON: {e}") from e
+        raise
 
 
-def extract_fields_with_llm(ocr_text, endpoint, api_key, deployment):
+def extract_fields_with_llm(
+    ocr_text: str,
+    endpoint: str,
+    api_key: str,
+    deployment: str
+) -> dict:
+    """
+    Extract structured fields from OCR text using Azure OpenAI.
+    """
     try:
-        # Serialize empty schema to JSON string
-        schema_json = InjuryForm().model_dump_json(indent=2, ensure_ascii=False)
+        schema_json = InjuryForm().model_dump_json(
+            indent=2,
+            ensure_ascii=False
+        )
         logger.info("Schema JSON prepared for LLM extraction")
 
-        # Initialize AzureOpenAI client
         client = AzureOpenAI(
             azure_endpoint=endpoint,
             api_key=api_key,
@@ -40,7 +55,6 @@ def extract_fields_with_llm(ocr_text, endpoint, api_key, deployment):
         )
         logger.info("AzureOpenAI client initialized")
 
-        # System and user prompts
         system_prompt = f"""
 You are an expert at extracting structured data from Israeli National Insurance forms.
 Forms may be in Hebrew or English.
@@ -61,7 +75,8 @@ OCR TEXT:
 Return JSON only.
 """
 
-        logger.info("Sending request to LLM...")
+        logger.info("Sending request to LLM")
+
         response = client.chat.completions.create(
             model=deployment,
             messages=[
@@ -72,18 +87,16 @@ Return JSON only.
         )
 
         raw_json = response.choices[0].message.content
-        logger.info("LLM response received")
-        logger.debug("RAW LLM OUTPUT:\n%s", raw_json)
+        logger.info("LLM response received (length=%d)", len(raw_json))
 
-        parsed = safe_json_loads(raw_json)
-        logger.info("LLM output successfully parsed into JSON")
+        parsed_json = safe_json_loads(raw_json)
 
-        validated_output = InjuryForm(**parsed).model_dump()
-        logger.info("Parsed JSON validated against InjuryForm schema")
+        validated_output = InjuryForm(**parsed_json).model_dump()
+        logger.info("LLM output validated against InjuryForm schema")
+
         return validated_output
 
-    except Exception as e:
-        logger.exception("Failed to extract fields using LLM")
-        # Optional: return empty schema or None on failure
+    except Exception:
+        logger.exception("LLM field extraction failed")
+        # Safe fallback: return empty schema
         return InjuryForm().model_dump()
-
