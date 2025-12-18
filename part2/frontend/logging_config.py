@@ -2,12 +2,11 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-def setup_logging(level=logging.INFO, logs_dir="logs_part2", log_file="part2_app_back.log"):
+def setup_logging(level=logging.INFO, logs_dir="logs_part2", log_file="part2_app_front.log"):
     """
     Configure root logging for the application.
-    Call this once at app startup.
-
     Logs are written only to a rotating log file in `logs_dir`.
+    Returns the root logger.
     """
     # Ensure logs directory exists
     os.makedirs(logs_dir, exist_ok=True)
@@ -17,7 +16,6 @@ def setup_logging(level=logging.INFO, logs_dir="logs_part2", log_file="part2_app
         "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
     )
 
-    # File handler with rotation
     file_handler = RotatingFileHandler(
         log_path,
         maxBytes=5_000_000,  # 5 MB
@@ -33,7 +31,7 @@ def setup_logging(level=logging.INFO, logs_dir="logs_part2", log_file="part2_app
     if root_logger.hasHandlers():
         root_logger.handlers.clear()
 
-    # Add only the file handler
     root_logger.addHandler(file_handler)
-
     root_logger.info("Logging initialized. Log file: %s", log_path)
+
+    return root_logger  # <-- add this!

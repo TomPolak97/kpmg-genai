@@ -1,24 +1,50 @@
 import logging
+import os
+import shutil
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
 from part2.backend.q_and_a_router import q_and_a_router
 from part2.backend.user_info_collect_router import user_info_collect_router
 from part2.backend.html_loader import preprocess_html
 from part2.backend.openai_client import init_client
-import part2.backend.logging_config as log_conf
+from part2.backend.logging_config import setup_logging
 
-# ---------------------------------------------------
-# Logging setup
-# ---------------------------------------------------
-log_conf.setup_logging()  # configure root logging first
-logger = logging.getLogger(__name__)  # use module name instead of "backend"
+# ------------------ Helper Functions ------------------
+def clear_logs_dir(logs_dir: str = "logs_part2", retries: int = 3, delay: float = 0.5):
+    """
+    Remove the logs directory if it exists to start fresh logs.
+    Retries a few times in case files are locked.
+    """
+    if os.path.exists(logs_dir):
+        # Remove all logging handlers to unlock log files
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+            handler.close()
 
-# --------------------------------------------------
-# Application lifespan
-# ---------------------------------------------------
+        for i in range(retries):
+            try:
+                shutil.rmtree(logs_dir)
+                print(f"Removed existing logs directory: {logs_dir}")
+                break
+            except Exception as e:
+                if i < retries - 1:
+                    time.sleep(delay)
+                else:
+                    print(f"Failed to remove {logs_dir}: {e}")
+
+
+# ------------------ Startup ------------------
+clear_logs_dir()          # Clear old logs
+setup_logging()  # Configure logging
+logger = logging.getLogger(__name__)
+
+# ------------------ Application Lifespan ------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """FastAPI application lifespan: startup and shutdown tasks."""
     logger.info("Starting backend initialization")
 
     # Initialize Azure OpenAI client
@@ -46,25 +72,23 @@ async def lifespan(app: FastAPI):
 
     logger.info("Backend startup completed successfully")
     yield
-
     # Shutdown
     logger.info("Backend shutting down")
     logger.info("Backend shutdown completed")
 
-# ---------------------------------------------------
-# FastAPI app
-# ---------------------------------------------------
+
+# ------------------ FastAPI App ------------------
 app = FastAPI(
     title="Medical Services Chatbot",
     lifespan=lifespan
 )
 
+# Include routers
 app.include_router(q_and_a_router)
 app.include_router(user_info_collect_router)
 
-# ---------------------------------------------------
-# Local development entrypoint
-# ---------------------------------------------------
+
+# ------------------ Local Development Entrypoint ------------------
 if __name__ == "__main__":
     import uvicorn
 
